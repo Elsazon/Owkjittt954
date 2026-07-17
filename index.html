@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operación Deuda Cero</title>
+<style>
+  :root{
+    --paper:#F2F4EF; --card:#FFFFFF; --ink:#17241D; --ink-soft:#5A6A60;
+    --green:#1F6B4A; --green-soft:#E4EFE8; --gold:#C99A2E; --gold-soft:#F7EFDC;
+    --red:#B3543F; --blue:#4A6B8A; --line:#DDE3DC; --radius:14px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--paper); color:var(--ink); padding:20px 16px 90px;
+    font-size:16px; line-height:1.45;
+  }
+  .wrap{max-width:680px;margin:0 auto;}
+  .num{font-variant-numeric:tabular-nums;}
+  header{margin-bottom:18px;}
+  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--green);margin-bottom:6px;}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.15;}
+  h1 span{color:var(--ink-soft);font-weight:600;}
+  h2{font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;}
+
+  .card{background:var(--card);border-radius:var(--radius);padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(23,36,29,.08);}
+
+  /* Resumen */
+  .summary-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
+  .summary-row .label{font-size:13px;color:var(--ink-soft);font-weight:600;}
+  .summary-row .val{font-size:22px;font-weight:800;}
+  .summary-row .val.small{font-size:16px;color:var(--ink-soft);}
+  .bar{height:10px;background:var(--green-soft);border-radius:6px;overflow:hidden;margin:10px 0 6px;}
+  .bar-fill{height:100%;background:var(--green);border-radius:6px;width:0%;transition:width .4s ease;}
+  .bar-note{font-size:12px;color:var(--ink-soft);}
+  .free-date{margin-top:10px;padding:10px 12px;background:var(--green-soft);border-radius:10px;font-size:14px;}
+  .free-date strong{color:var(--green);}
+
+  /* Deudas hoy */
+  .debt-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
+  .debt-row:last-child{border-bottom:none;}
+  .debt-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+  .debt-info{flex:1;min-width:0;}
+  .debt-name{font-weight:700;font-size:15px;}
+  .debt-meta{font-size:12px;color:var(--ink-soft);}
+  .debt-bal{font-weight:800;font-size:16px;text-align:right;}
+  .debt-payoff{font-size:11.5px;color:var(--ink-soft);text-align:right;}
+  .debt-row.dead .debt-name{text-decoration:line-through;color:var(--ink-soft);}
+  .debt-row.dead .debt-bal{color:var(--green);}
+  .debt-edit{font-size:12px;color:var(--blue);background:none;border:none;padding:4px;cursor:pointer;text-decoration:underline;}
+
+  /* Kill list */
+  .kill-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);}
+  .kill-item:last-child{border-bottom:none;}
+  .kill-item input{width:22px;height:22px;accent-color:var(--green);flex-shrink:0;}
+  .kill-name{font-weight:700;flex:1;font-size:15px;}
+  .kill-meta{font-size:12.5px;color:var(--ink-soft);}
+  .kill-item.done .kill-name{text-decoration:line-through;color:var(--ink-soft);}
+  .kill-item.done .kill-meta{color:var(--green);font-weight:600;}
+
+  /* Foco */
+  .focus{background:var(--gold-soft);border:1.5px solid var(--gold);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;}
+  .focus .label{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:2px;}
+  .focus .target{font-size:18px;font-weight:800;}
+  .focus .why{font-size:13px;color:var(--ink-soft);margin-top:2px;}
+
+  /* What-if */
+  .whatif-val{font-size:20px;font-weight:800;color:var(--green);}
+  input[type=range]{width:100%;accent-color:var(--green);margin:10px 0;}
+  .whatif-result{font-size:14px;background:var(--paper);border-radius:10px;padding:10px 12px;margin-top:8px;line-height:1.5;}
+  .whatif-result strong{color:var(--green);}
+
+  /* Chart */
+  #chart{width:100%;height:230px;display:block;}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:12px;color:var(--ink-soft);}
+  .legend span{display:flex;align-items:center;gap:5px;}
+  .legend i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+
+  /* Cheques */
+  .month-label{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin:26px 0 10px;}
+  .check{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(23,36,29,.08);}
+  .check.extra{border:1.5px solid var(--gold);}
+  .check-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+  .check-date{font-weight:800;font-size:17px;}
+  .check-tag{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:20px;background:var(--green-soft);color:var(--green);}
+  .check.extra .check-tag{background:var(--gold-soft);color:var(--gold);}
+  .check-sub{font-size:13px;color:var(--ink-soft);margin-bottom:10px;}
+  .item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);}
+  .item:last-of-type{border-bottom:none;}
+  .item input[type=checkbox]{width:22px;height:22px;accent-color:var(--green);flex-shrink:0;}
+  .item .name{flex:1;font-size:14.5px;}
+  .item .amt{font-weight:700;font-size:15px;}
+  .item.debt .name{font-weight:700;color:var(--green);}
+  .item.debt input[type=number]{
+    width:78px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;
+    font-size:15px;font-weight:700;color:var(--green);text-align:right;
+    font-variant-numeric:tabular-nums;background:var(--card);
+  }
+  .item.debt input[type=number]:focus{outline:2px solid var(--green);border-color:var(--green);}
+  .item.checked .name,.item.checked .amt{text-decoration:line-through;color:var(--ink-soft);}
+  .check-total{display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1.5px solid var(--ink);font-weight:800;font-size:15px;}
+  .balance-note{font-size:12.5px;color:var(--ink-soft);margin-top:8px;padding:8px 10px;background:var(--paper);border-radius:8px;}
+  .balance-note strong{color:var(--red);}
+  .balance-note.win strong{color:var(--green);}
+
+  /* Botones */
+  .btn{display:inline-block;border:none;border-radius:10px;padding:11px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}
+  .btn-green{background:var(--green);color:#fff;}
+  .btn-outline{background:var(--card);color:var(--green);border:1.5px solid var(--green);}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+  .btn:focus-visible{outline:3px solid var(--gold);}
+
+  /* Snowflake FAB */
+  .fab{
+    position:fixed;bottom:20px;right:20px;width:58px;height:58px;border-radius:50%;
+    background:var(--green);color:#fff;font-size:26px;border:none;cursor:pointer;
+    box-shadow:0 4px 12px rgba(23,36,29,.3);z-index:50;
+  }
+  .fab:active{transform:scale(.94);}
+
+  /* Modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(23,36,29,.45);display:none;align-items:flex-end;justify-content:center;z-index:100;}
+  .modal-bg.open{display:flex;}
+  .modal{background:var(--card);border-radius:18px 18px 0 0;padding:22px 18px 30px;width:100%;max-width:680px;}
+  .modal h3{font-size:18px;font-weight:800;margin-bottom:12px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:4px;}
+  .field input,.field select{
+    width:100%;padding:10px;border:1.5px solid var(--line);border-radius:10px;
+    font-size:16px;font-family:inherit;background:var(--card);color:var(--ink);
+  }
+  .field input:focus,.field select:focus{outline:2px solid var(--green);border-color:var(--green);}
+  .modal-msg{font-size:14px;background:var(--green-soft);border-radius:10px;padding:10px 12px;margin-top:10px;display:none;}
+  .modal-msg.show{display:block;}
+
+  footer{margin-top:30px;font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
+  .save-status{position:fixed;bottom:22px;left:16px;font-size:12px;background:var(--ink);color:#fff;padding:6px 12px;border-radius:20px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:60;}
+  .save-status.show{opacity:.85;}
+  #confetti-canvas{position:fixed;inset:0;pointer-events:none;z-index:200;}
+  @media (prefers-reduced-motion: reduce){ .bar-fill{transition:none;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Plan de pagos · quincenal</div>
+    <h1>Operación Deuda Cero <span>· 2026</span></h1>
+  </header>
+
+  <div class="card">
+    <div class="summary-row">
+      <span class="label">Pagado a deuda</span>
+      <span class="val num" id="paidTotal">$300</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">Meta (deuda + intereses proyectados)</span>
+      <span class="val small num" id="goalTotal">—</span>
+    </div>
+    <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+    <div class="bar-note" id="barNote"></div>
+    <div class="free-date" id="freeDate"></div>
+  </div>
+
+  <div class="focus">
+    <div class="label">¿Dinero extra? Tíralo a:</div>
+    <div class="target" id="focusTarget">—</div>
+    <div class="why" id="focusWhy"></div>
+  </div>
+
+  <div class="card">
+    <h2>💳 Tus deudas hoy</h2>
+    <div id="debtList"></div>
+    <div class="btn-row">
+      <button class="btn btn-outline" id="btnAddDebt">+ Añadir deuda</button>
+      <button class="btn btn-outline" id="btnStudentLoan">🎓 Préstamo estudiantil</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>☠️ Lista de bajas</h2>
+    <div id="killList"></div>
+  </div>
+
+  <div class="card">
+    <h2>🔮 ¿Y si pago más al mes?</h2>
+    <div class="summary-row">
+      <span class="label">Extra mensual</span>
+      <span class="whatif-val num" id="whatifVal">$0</span>
+    </div>
+    <input type="range" id="whatifSlider" min="0" max="500" step="25" value="0" aria-label="Pago extra mensual">
+    <div class="whatif-result" id="whatifResult"></div>
+  </div>
+
+  <div class="card">
+    <h2>📉 Balances en el tiempo</h2>
+    <canvas id="chart"></canvas>
+    <div class="legend" id="chartLegend"></div>
+  </div>
+
+  <div id="checks"></div>
+
+  <div class="card">
+    <h2>🧰 Herramientas</h2>
+    <div class="btn-row">
+      <button class="btn btn-outline" id="btnIcs">📅 Recordatorios (.ics)</button>
+      <button class="btn btn-outline" id="btnExport">⬇️ Backup JSON</button>
+      <button class="btn btn-outline" id="btnImport">⬆️ Restaurar backup</button>
+      <input type="file" id="importFile" accept=".json" style="display:none">
+    </div>
+  </div>
+
+  <footer id="footerText">
+    <strong>Reglas del plan:</strong> Los montos de deuda son editables — escribe lo que pagaste de verdad y todo se recalcula (balances, fechas, intereses). El botón verde ❄️ registra pagos extra en cualquier momento. Los $90 de suscripciones cargan a la Discover: su pago del Cheque B ya los incluye; si las mueves a débito, edita el "cargo recurrente" de la Discover a $0. Cuando llegue la carta del préstamo estudiantil, añádelo con el botón 🎓. ⚠️ Verifica las fechas de promoción "deferred interest" de Best Buy y Home Depot en tus estados.
+  </footer>
+</div>
+
+<button class="fab" id="fabSnowflake" aria-label="Registrar pago extra">❄️</button>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<div class="save-status" id="saveStatus">Guardado ✓</div>
+<canvas id="confetti-canvas"></canvas>
+
+<script>
+"use strict";
+/* ============ DATOS BASE ============ */
+const START_YM = ym(2026,7);           // julio 2026
+const PRE_PAID = 300;                   // pago inicial Discover (17 jul)
+const HORIZON = 36;                     // meses máx de proyección
+const TODAY = new Date();
+
+const BASE_DEBTS = [
+  {id:"discover", name:"Discover", bal:2700, apr:28.99, min:35, recurring:90, color:"#1F6B4A",
+   metaKill:"meta: 30 oct"},
+  {id:"hd", name:"Home Depot", bal:330, apr:29.99, min:27, recurring:0, color:"#C99A2E",
+   metaKill:"meta: 27 nov · ⚠️ verifica deferred interest"},
+  {id:"bb", name:"Best Buy", bal:600, apr:29.99, min:30, recurring:0, color:"#B3543F",
+   metaKill:"meta: 11 dic · ⚠️ verifica deferred interest"},
+  {id:"chase", name:"Chase (0%)", bal:1500, apr:0, aprAfterPromo:24.99, promoEnd:ym(2027,2), min:40, recurring:0, color:"#4A6B8A",
+   metaKill:"meta: fin de enero 2027 · promo 0% vence ene 2027"}
+];
+
+const CHECKS = [
+ {id:"c1", date:"2026-07-24", label:"Vie 24 jul", month:"Julio", tag:"Cheque A · Vivienda", items:[
+   {n:"Renta",a:150},{n:"Celular",a:90},{n:"Compra (2 sem)",a:140},{n:"Gasolina",a:45},
+   {n:"Discover — pago extra",a:375,debt:"discover"}]},
+ {id:"c2", date:"2026-08-07", label:"Vie 7 ago", month:"Agosto", tag:"Cheque B · Cuentas", items:[
+   {n:"Cuentas (débito)",a:20},{n:"Mín. Best Buy",a:30,debt:"bb"},{n:"Mín. Home Depot",a:27,debt:"hd"},{n:"Mín. Chase",a:40,debt:"chase"},
+   {n:"Compra (2 sem)",a:135},{n:"Gasolina",a:45},{n:"Personal / imprevistos",a:198},
+   {n:"Discover — pago (incluye $90 subs)",a:305,debt:"discover"}]},
+ {id:"c3", date:"2026-08-21", label:"Vie 21 ago", month:"Agosto", tag:"Cheque A · Vivienda", items:[
+   {n:"Renta",a:150},{n:"Celular",a:90},{n:"Compra (2 sem)",a:140},{n:"Gasolina",a:45},
+   {n:"Discover — pago extra",a:375,debt:"discover"}]},
+ {id:"c4", date:"2026-09-04", label:"Vie 4 sep", month:"Septiembre", tag:"Cheque B · Cuentas", items:[
+   {n:"Cuentas (débito)",a:20},{n:"Mín. Best Buy",a:30,debt:"bb"},{n:"Mín. Home Depot",a:27,debt:"hd"},{n:"Mín. Chase",a:40,debt:"chase"},
+   {n:"Compra (2 sem)",a:135},{n:"Gasolina",a:45},{n:"Personal / imprevistos",a:198},
+   {n:"Discover — pago (incluye $90 subs)",a:305,debt:"discover"}]},
+ {id:"c5", date:"2026-09-18", label:"Vie 18 sep", month:"Septiembre", tag:"Cheque A · Vivienda", items:[
+   {n:"Renta",a:150},{n:"Celular",a:90},{n:"Compra (2 sem)",a:140},{n:"Gasolina",a:45},
+   {n:"Discover — pago extra",a:375,debt:"discover"}]},
+ {id:"c6", date:"2026-10-02", label:"Vie 2 oct", month:"Octubre", tag:"Cheque B · Cuentas", items:[
+   {n:"Cuentas (débito)",a:20},{n:"Mín. Best Buy",a:30,debt:"bb"},{n:"Mín. Home Depot",a:27,debt:"hd"},{n:"Mín. Chase",a:40,debt:"chase"},
+   {n:"Compra (2 sem)",a:135},{n:"Gasolina",a:45},{n:"Personal / imprevistos",a:198},
+   {n:"Discover — pago (incluye $90 subs)",a:305,debt:"discover"}]},
+ {id:"c7", date:"2026-10-16", label:"Vie 16 oct", month:"Octubre", tag:"⭐ 3er cheque del mes", extra:true, items:[
+   {n:"Compra (2 sem)",a:140},
+   {n:"Discover — TODO a deuda",a:660,debt:"discover"}]},
+ {id:"c8", date:"2026-10-30", label:"Vie 30 oct", month:"Octubre", tag:"Cheque A · Vivienda", items:[
+   {n:"Renta",a:150},{n:"Celular",a:90},{n:"Compra (2 sem)",a:140},{n:"Gasolina",a:45},
+   {n:"Discover — pago final 🎉",a:400,debt:"discover"}],
+   note:"<strong>Discover MUERTO</strong> ☠️ Se acabaron los ~$73/mes de intereses", win:true},
+ {id:"c9", date:"2026-11-13", label:"Vie 13 nov", month:"Noviembre", tag:"Cheque B · Cuentas", items:[
+   {n:"Cuentas (débito)",a:20},{n:"Discover — subs del mes (pagar completo)",a:90},
+   {n:"Mín. Best Buy",a:30,debt:"bb"},{n:"Mín. Chase",a:40,debt:"chase"},
+   {n:"Compra (2 sem)",a:135},{n:"Gasolina",a:45},{n:"Personal / imprevistos",a:200},
+   {n:"Home Depot — pago fuerte",a:240,debt:"hd"}],
+   note:"⚠️ Mes en que puede arrancar el préstamo estudiantil — añádelo con el botón 🎓 cuando llegue la carta"},
+ {id:"c10", date:"2026-11-27", label:"Vie 27 nov", month:"Noviembre", tag:"Cheque A · Vivienda", items:[
+   {n:"Renta",a:150},{n:"Celular",a:90},{n:"Compra (2 sem)",a:140},{n:"Gasolina",a:45},
+   {n:"Home Depot — pago final 🎉",a:35,debt:"hd"},
+   {n:"Best Buy — pago extra",a:340,debt:"bb"}],
+   note:"<strong>Home Depot MUERTO</strong> ☠️ · Best Buy queda en ~$200", win:true},
+ {id:"c11", date:"2026-12-11", label:"Vie 11 dic", month:"Diciembre", tag:"Cheque B · Cuentas", items:[
+   {n:"Cuentas (débito)",a:20},{n:"Discover — subs del mes (pagar completo)",a:90},
+   {n:"Mín. Chase",a:40,debt:"chase"},
+   {n:"Compra (2 sem)",a:135},{n:"Gasolina",a:45},{n:"Personal / imprevistos",a:200},
+   {n:"Best Buy — pago final 🎉",a:205,debt:"bb"},
+   {n:"Chase — extra",a:65,debt:"chase"}],
+   note:"<strong>Best Buy MUERTO</strong> ☠️ · solo queda Chase (0%)", win:true},
+ {id:"c12", date:"2026-12-25", label:"Vie 25 dic", month:"Diciembre", tag:"Cheque A · Vivienda", items:[
+   {n:"Renta",a:150},{n:"Celular",a:90},{n:"Compra (2 sem)",a:140},{n:"Gasolina",a:45},
+   {n:"Chase — pago fuerte",a:375,debt:"chase"}],
+   note:"Entrando a enero con ~$700/mes libre para Chase — muere antes de que expire el 0% 🏁", win:true}
+];
+
+const FUTURE_MONTHLY = 687; // 375 + 215 netos + 97 de mínimos, disponible a deuda desde ene 2027
+
+/* ============ ESTADO ============ */
+let state = { done:{}, kills:{}, snowflakes:[], extraDebts:[], overrides:{}, whatif:0 };
+
+async function saveState(){
+  const data = JSON.stringify(state);
+  try{ if(window.storage){ await window.storage.set('deuda-cero-v2', data); flashSave(); return; } }catch(e){}
+  try{ localStorage.setItem('deuda-cero-v2', data); flashSave(); }catch(e){}
+}
+async function loadState(){
+  let raw = null;
+  try{ if(window.storage){ const r = await window.storage.get('deuda-cero-v2'); raw = r ? r.value : null; } }catch(e){}
+  if(!raw){ try{ raw = localStorage.getItem('deuda-cero-v2'); }catch(e){} }
+  if(raw){ try{ const s = JSON.parse(raw); state = Object.assign(state, s); }catch(e){} }
+}
+let saveTimer;
+function flashSave(){
+  const el = document.getElementById('saveStatus');
+  el.classList.add('show');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>el.classList.remove('show'), 1200);
+}
+
+/* ============ UTILIDADES ============ */
+function ym(y,m){ return y*12 + (m-1); }               // índice de mes continuo
+function ymFromDate(d){ return d.getFullYear()*12 + d.getMonth(); }
+function ymLabel(v){
+  const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  return meses[v%12] + " " + Math.floor(v/12);
+}
+function money(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
+function payoffLabel(v){ return ymLabel(Math.floor(v - 0.01)); }
+function getDebts(){
+  return BASE_DEBTS.map(d=>{
+    const o = state.overrides[d.id]||{};
+    return Object.assign({}, d, o);
+  }).concat(state.extraDebts||[]);
+}
+
+/* ============ MOTOR DE PROYECCIÓN ============ */
+/* Simula mes a mes: intereses + cargos recurrentes + pagos (reales o del plan). */
+function project(extraMonthly){
+  extraMonthly = extraMonthly||0;
+  const debts = getDebts().map(d=>({
+    id:d.id, name:d.name, bal:d.bal, apr:d.apr, aprAfterPromo:d.aprAfterPromo,
+    promoEnd:d.promoEnd, min:d.min, recurring:d.recurring||0, color:d.color,
+    startYm:d.startYm||START_YM, payoff:null, series:[]
+  }));
+  const byId = {}; debts.forEach(d=>byId[d.id]=d);
+
+  // pagos por mes por deuda: reales (checked/snowflakes) + planificados (no marcados)
+  const pays = {}; // pays[ymIdx][debtId] = monto
+  function addPay(ymIdx, debtId, amt){
+    if(!pays[ymIdx]) pays[ymIdx] = {};
+    pays[ymIdx][debtId] = (pays[ymIdx][debtId]||0) + amt;
+  }
+  CHECKS.forEach(c=>{
+    const d = new Date(c.date + 'T12:00:00');
+    const mi = ymFromDate(d);
+    c.items.forEach((it,idx)=>{
+      if(!it.debt) return;
+      const key = c.id + '-' + idx;
+      const logged = state.done[key];
+      if(logged !== undefined && logged !== false){
+        addPay(mi, it.debt, typeof logged === 'number' ? logged : it.a);
+      } else {
+        addPay(mi, it.debt, it.a); // asume el plan si no está marcado
+      }
+    });
+  });
+  (state.snowflakes||[]).forEach(s=>{
+    const d = new Date(s.date + 'T12:00:00');
+    addPay(ymFromDate(d), s.debtId, s.amount);
+  });
+
+  const lastPlanned = ym(2026,12);
+  let totalInterest = 0;
+  const startIdx = START_YM;
+  const labels = [];
+  debts.forEach(d=>d.series.push({m:startIdx, bal: d.startYm<=startIdx ? d.bal : 0}));
+  labels.push(startIdx);
+
+  for(let m = startIdx; m < startIdx + HORIZON; m++){
+    debts.forEach(d=>{ d.paidThisMonth = 0; });
+    // 1. intereses y cargos del mes
+    debts.forEach(d=>{
+      if(m <= d.startYm || d.bal <= 0) return; // sin acumulación el mes de arranque
+      let apr = d.apr;
+      if(d.promoEnd !== undefined && m >= d.promoEnd && d.aprAfterPromo) apr = d.aprAfterPromo;
+      const interest = d.bal * apr/1200;
+      d.bal += interest;
+      totalInterest += interest;
+      if(d.recurring) d.bal += d.recurring; // suscripciones (se cubren con el pago)
+    });
+
+    // 2. pagos del mes
+    debts.forEach(d=>{ d.balBeforePay = d.bal; });
+    if(m <= lastPlanned){
+      const mp = pays[m]||{};
+      let overflow = 0;
+      debts.forEach(d=>{
+        if(d.bal <= 0){ overflow += mp[d.id]||0; return; }
+        const p = mp[d.id]||0;
+        const eff = Math.min(p, d.bal);
+        d.bal -= eff; d.paidThisMonth += eff;
+        overflow += p - eff; // lo que sobra pasa a la siguiente deuda
+      });
+      if(overflow > 0) payAvalanche(debts, overflow, m);
+      if(extraMonthly && m > ymFromDate(TODAY)){
+        payAvalanche(debts, extraMonthly, m);
+      }
+    } else {
+      // fase genérica: mínimos + resto avalancha
+      let pool = FUTURE_MONTHLY + extraMonthly;
+      debts.forEach(d=>{
+        if(d.bal <= 0 || m < d.startYm) return;
+        const p = Math.min(d.min, d.bal);
+        d.bal -= p; pool -= p; d.paidThisMonth += p;
+      });
+      if(pool > 0) payAvalanche(debts, pool, m);
+    }
+
+    // 3. registrar payoff y series
+    debts.forEach(d=>{
+      if(d.bal <= 5 && d.payoff === null && m >= d.startYm){
+        // fracción del mes en que murió, proporcional a cuándo se completó el pago
+        const frac = d.paidThisMonth > 0
+          ? Math.min(1, Math.max(0.05, d.balBeforePay / d.paidThisMonth))
+          : 0.5;
+        d.payoff = m + frac;
+        d.bal = 0;
+        if(d.recurring) d.recurring = 0; // ya se paga completo cada mes
+      }
+      d.series.push({m:m+1, bal: m+1 >= d.startYm ? Math.max(0,d.bal) : 0});
+    });
+    labels.push(m+1);
+
+    if(debts.every(d=> d.bal<=0 && (d.payoff!==null || d.startYm>m) )){
+      // todas muertas (las que ya arrancaron)
+      const anyPending = debts.some(d=>d.startYm > m && d.bal > 0);
+      if(!anyPending) break;
+    }
+  }
+
+  const alive = debts.filter(d=>d.payoff===null && d.bal>0);
+  const freeMonth = alive.length ? null : Math.max.apply(null, debts.map(d=>d.payoff||startIdx));
+  return { debts, totalInterest, freeMonth, labels };
+}
+
+function payAvalanche(debts, pool, m){
+  // orden: APR más alto primero; 0% (Chase en promo) al final
+  const order = debts
+    .filter(d=>d.bal>0 && m >= d.startYm)
+    .sort((a,b)=>{
+      const aApr = (a.promoEnd!==undefined && m < a.promoEnd) ? a.apr : (a.aprAfterPromo||a.apr);
+      const bApr = (b.promoEnd!==undefined && m < b.promoEnd) ? b.apr : (b.aprAfterPromo||b.apr);
+      return bApr - aApr;
+    });
+  for(const d of order){
+    if(pool <= 0) break;
+    const p = Math.min(pool, d.bal);
+    d.bal -= p; pool -= p; d.paidThisMonth = (d.paidThisMonth||0) + p;
+  }
+}
+
+/* Balance actual (a hoy) por deuda: proyección hasta el mes corriente usando solo lo real */
+function currentBalances(){
+  const proj = project(0);
+  const nowM = ymFromDate(TODAY);
+  const out = {};
+  proj.debts.forEach(d=>{
+    const pt = d.series.find(s=>s.m===Math.max(nowM, START_YM)) || d.series[0];
+    out[d.id] = pt ? pt.bal : d.bal;
+  });
+  return out;
+}
+
+/* ============ RENDER ============ */
+function render(){
+  renderChecks();
+  renderDebts();
+  renderKills();
+  updateAll();
+}
+
+function updateAll(){
+  const base = project(0);
+  updateSummary(base);
+  updateFocus();
+  updateWhatif(base);
+  drawChart(base);
+  renderDebtBalances(base);
+}
+
+function renderChecks(){
+  const container = document.getElementById('checks');
+  container.innerHTML = '';
+  let lastMonth = '';
+  CHECKS.forEach(c=>{
+    if(c.month !== lastMonth){
+      const m = document.createElement('div');
+      m.className = 'month-label';
+      m.textContent = c.month + ' 2026';
+      container.appendChild(m);
+      lastMonth = c.month;
+    }
+    const card = document.createElement('div');
+    card.className = 'check' + (c.extra ? ' extra':'');
+    let html = `<div class="check-head"><span class="check-date">${c.label}</span><span class="check-tag">${c.tag}</span></div>`;
+    html += `<div class="check-sub num">Disponible: $800 (después de los $100 de ahorro automático)</div>`;
+    c.items.forEach((it,idx)=>{
+      const key = c.id + '-' + idx;
+      const logged = state.done[key];
+      const on = logged !== undefined && logged !== false;
+      if(it.debt){
+        const val = typeof logged === 'number' ? logged : it.a;
+        html += `<div class="item debt ${on?'checked':''}" data-key="${key}">
+          <input type="checkbox" ${on?'checked':''} aria-label="${it.n}">
+          <span class="name">${it.n}</span>
+          <input type="number" inputmode="decimal" value="${val}" min="0" step="1" aria-label="Monto pagado: ${it.n}">
+        </div>`;
+      } else {
+        html += `<div class="item ${on?'checked':''}" data-key="${key}">
+          <input type="checkbox" ${on?'checked':''} aria-label="${it.n}">
+          <span class="name">${it.n}</span>
+          <span class="amt num">${money(it.a)}</span>
+        </div>`;
+      }
+    });
+    const total = c.items.reduce((s,i)=>s+i.a,0);
+    html += `<div class="check-total num"><span>Total plan</span><span>${money(total)}</span></div>`;
+    if(c.note) html += `<div class="balance-note ${c.win?'win':''}">${c.note}</div>`;
+    card.innerHTML = html;
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('.item').forEach(row=>{
+    const key = row.dataset.key;
+    const cb = row.querySelector('input[type=checkbox]');
+    const numInput = row.querySelector('input[type=number]');
+    cb.addEventListener('change', ()=>{
+      if(cb.checked){
+        state.done[key] = numInput ? (parseFloat(numInput.value)||0) : true;
+      } else {
+        delete state.done[key];
+      }
+      row.classList.toggle('checked', cb.checked);
+      updateAll(); saveState();
+    });
+    if(numInput){
+      numInput.addEventListener('change', ()=>{
+        if(cb.checked){ state.done[key] = parseFloat(numInput.value)||0; updateAll(); saveState(); }
+      });
+      numInput.addEventListener('click', e=>e.stopPropagation());
+    }
+  });
+}
+
+function renderDebts(){
+  const el = document.getElementById('debtList');
+  el.innerHTML = '';
+  getDebts().forEach(d=>{
+    const dead = !!state.kills[d.id];
+    el.innerHTML += `<div class="debt-row ${dead?'dead':''}" data-debt="${d.id}">
+      <span class="debt-dot" style="background:${d.color}"></span>
+      <div class="debt-info">
+        <div class="debt-name">${d.name}</div>
+        <div class="debt-meta num" id="meta-${d.id}">${d.apr}% APR · mín ${money(d.min)}${d.recurring?` · +${money(d.recurring)}/mes recurrente`:''}</div>
+      </div>
+      <div>
+        <div class="debt-bal num" id="bal-${d.id}">—</div>
+        <div class="debt-payoff num" id="payoff-${d.id}"></div>
+      </div>
+      <button class="debt-edit" data-edit="${d.id}" aria-label="Editar ${d.name}">editar</button>
+    </div>`;
+  });
+  el.querySelectorAll('[data-edit]').forEach(b=>{
+    b.addEventListener('click', ()=>openEditDebt(b.dataset.edit));
+  });
+}
+
+function renderDebtBalances(proj){
+  const bals = {};
+  const nowM = Math.max(ymFromDate(TODAY), START_YM);
+  proj.debts.forEach(d=>{
+    const pt = d.series.find(s=>s.m===nowM);
+    bals[d.id] = pt ? pt.bal : d.bal;
+    const balEl = document.getElementById('bal-'+d.id);
+    const poEl = document.getElementById('payoff-'+d.id);
+    if(balEl) balEl.textContent = state.kills[d.id] ? '$0 ☠️' : '~'+money(bals[d.id]);
+    if(poEl && !state.kills[d.id] && d.payoff !== null){
+      poEl.textContent = 'muere ~' + payoffLabel(d.payoff);
+    } else if(poEl){ poEl.textContent = ''; }
+  });
+}
+
+function renderKills(){
+  const el = document.getElementById('killList');
+  el.innerHTML = '';
+  getDebts().forEach(d=>{
+    const on = !!state.kills[d.id];
+    el.innerHTML += `<div class="kill-item ${on?'done':''}" data-kill="${d.id}">
+      <input type="checkbox" ${on?'checked':''} aria-label="Deuda eliminada: ${d.name}">
+      <span class="kill-name">${d.name}</span>
+      <span class="kill-meta">${on?'☠️ eliminada':(d.metaKill||'')}</span>
+    </div>`;
+  });
+  el.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('change', e=>{
+      const id = e.target.closest('.kill-item').dataset.kill;
+      state.kills[id] = e.target.checked;
+      if(e.target.checked) fireConfetti();
+      renderKills(); renderDebts(); updateAll(); saveState();
+    });
+  });
+}
+
+function updateSummary(proj){
+  let paid = PRE_PAID;
+  CHECKS.forEach(c=>c.items.forEach((it,idx)=>{
+    if(!it.debt) return;
+    const v = state.done[c.id+'-'+idx];
+    if(v !== undefined && v !== false) paid += (typeof v==='number'?v:it.a);
+  }));
+  (state.snowflakes||[]).forEach(s=>paid += s.amount);
+
+  const totalDebt = getDebts().reduce((s,d)=>s+d.bal,0);
+  const goal = PRE_PAID + totalDebt + proj.totalInterest;
+  document.getElementById('paidTotal').textContent = money(paid);
+  document.getElementById('goalTotal').textContent = money(goal);
+  const pct = Math.min(100, Math.round(paid/goal*100));
+  document.getElementById('barFill').style.width = pct + '%';
+  const note = document.getElementById('barNote');
+  if(pct >= 100) note.textContent = '🏁 ¡DEUDA CERO! Lo lograste.';
+  else if(pct >= 75) note.textContent = pct + '% — la recta final.';
+  else if(pct >= 50) note.textContent = pct + '% — pasaste la mitad. El impulso es tuyo.';
+  else if(pct >= 25) note.textContent = pct + '% — el interés del Discover ya casi no muerde.';
+  else note.textContent = pct + '% pagado — arrancaste con $300 el 17 de julio. 💪';
+
+  const fd = document.getElementById('freeDate');
+  if(proj.freeMonth){
+    fd.innerHTML = `Libre de deuda: <strong>~${payoffLabel(proj.freeMonth)}</strong> · intereses totales proyectados: <strong>${money(proj.totalInterest)}</strong>`;
+  } else {
+    fd.innerHTML = 'Proyección: añade tus pagos para calcular la fecha libre de deuda.';
+  }
+  // aviso promo Chase
+  const chase = proj.debts.find(d=>d.id==='chase');
+  if(chase && chase.payoff !== null && chase.payoff >= ym(2027,3) && !state.kills['chase']){
+    fd.innerHTML += '<br>⚠️ Al ritmo actual, Chase pasaría del vencimiento de la promo 0% (ene 2027) — súbele el ritmo o usa el simulador.';
+  }
+}
+
+function updateFocus(){
+  const nowM = ymFromDate(TODAY);
+  const alive = getDebts().filter(d=>!state.kills[d.id]);
+  alive.sort((a,b)=>{
+    const aApr = (a.promoEnd!==undefined && nowM < a.promoEnd) ? a.apr : (a.aprAfterPromo||a.apr);
+    const bApr = (b.promoEnd!==undefined && nowM < b.promoEnd) ? b.apr : (b.aprAfterPromo||b.apr);
+    return bApr - aApr;
+  });
+  const t = document.getElementById('focusTarget');
+  const w = document.getElementById('focusWhy');
+  if(alive.length){
+    t.textContent = '→ ' + alive[0].name;
+    w.textContent = alive[0].apr > 0
+      ? `Tu deuda más cara ahora mismo (${alive[0].apr}%). Usa el botón ❄️ para registrar el pago extra.`
+      : 'Al 0% — pero sáldala antes de que expire la promo en enero 2027.';
+  } else {
+    t.textContent = '→ Cuenta de ahorros 🏆';
+    w.textContent = 'Deuda cero. Ahora todo extra construye tu colchón.';
+  }
+}
+
+function updateWhatif(base){
+  const extra = state.whatif||0;
+  document.getElementById('whatifVal').textContent = money(extra) + '/mes';
+  document.getElementById('whatifSlider').value = extra;
+  const el = document.getElementById('whatifResult');
+  if(!extra){
+    el.innerHTML = base.freeMonth
+      ? `Plan actual: libre de deuda <strong>~${payoffLabel(base.freeMonth)}</strong>. Mueve el slider para ver qué pasa con más.`
+      : 'Mueve el slider para simular.';
+    return;
+  }
+  const sim = project(extra);
+  if(sim.freeMonth && base.freeMonth){
+    const daysSaved = Math.round((base.freeMonth - sim.freeMonth) * 30.4);
+    const intSaved = base.totalInterest - sim.totalInterest;
+    el.innerHTML = `Con <strong>${money(extra)}/mes extra</strong>: libre de deuda <strong>~${payoffLabel(sim.freeMonth)}</strong> — te adelantas <strong>~${daysSaved} días</strong> y te ahorras <strong>${money(intSaved)}</strong> en intereses.`;
+  } else {
+    el.textContent = 'Simulación no disponible con los datos actuales.';
+  }
+}
+
+/* ============ GRÁFICA ============ */
+function drawChart(proj){
+  const canvas = document.getElementById('chart');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth || 600, H = 230;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  const nowM = ymFromDate(TODAY);
+  const endM = proj.freeMonth ? Math.ceil(proj.freeMonth)+1 : START_YM+12;
+  const months = [];
+  for(let m=START_YM; m<=endM; m++) months.push(m);
+  const maxBal = Math.max(100, ...proj.debts.map(d=>Math.max(...d.series.map(s=>s.bal))));
+  const padL=44, padR=8, padT=10, padB=24;
+  const x = m => padL + (m-START_YM)/(endM-START_YM) * (W-padL-padR);
+  const y = b => padT + (1 - b/maxBal) * (H-padT-padB);
+
+  // grid Y
+  ctx.strokeStyle = '#DDE3DC'; ctx.fillStyle = '#5A6A60';
+  ctx.font = '10px -apple-system, sans-serif'; ctx.lineWidth = 1;
+  [0,.25,.5,.75,1].forEach(f=>{
+    const val = maxBal*f;
+    ctx.beginPath(); ctx.moveTo(padL, y(val)); ctx.lineTo(W-padR, y(val)); ctx.stroke();
+    const lbl = val >= 1000 ? '$'+(Math.round(val/100)/10)+'k' : '$'+Math.round(val);
+    ctx.fillText(lbl, 2, y(val)+3);
+  });
+  // etiquetas X cada 2 meses
+  months.forEach((m,i)=>{
+    if(i % 2 === 0){ ctx.fillText(ymLabel(m).split(' ')[0], x(m)-8, H-8); }
+  });
+  // línea "hoy"
+  if(nowM >= START_YM && nowM <= endM){
+    ctx.strokeStyle = '#C99A2E'; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(x(nowM), padT); ctx.lineTo(x(nowM), H-padB); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // series
+  proj.debts.forEach(d=>{
+    ctx.strokeStyle = d.color; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    let started = false;
+    d.series.forEach(pt=>{
+      if(pt.m < START_YM || pt.m > endM) return;
+      if(!started){ ctx.moveTo(x(pt.m), y(pt.bal)); started = true; }
+      else ctx.lineTo(x(pt.m), y(pt.bal));
+    });
+    ctx.stroke();
+  });
+
+  const leg = document.getElementById('chartLegend');
+  leg.innerHTML = proj.debts.map(d=>`<span><i style="background:${d.color}"></i>${d.name}</span>`).join('') +
+    `<span><i style="background:#C99A2E;border-radius:0;width:2px;height:12px;"></i>hoy</span>`;
+}
+
+/* ============ MODALES ============ */
+const modalBg = document.getElementById('modalBg');
+const modalContent = document.getElementById('modalContent');
+function openModal(html){ modalContent.innerHTML = html; modalBg.classList.add('open'); }
+function closeModal(){ modalBg.classList.remove('open'); }
+modalBg.addEventListener('click', e=>{ if(e.target===modalBg) closeModal(); });
+
+/* Snowflake ❄️ */
+document.getElementById('fabSnowflake').addEventListener('click', ()=>{
+  const opts = getDebts().filter(d=>!state.kills[d.id])
+    .map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+  openModal(`
+    <h3>❄️ Pago extra (snowflake)</h3>
+    <div class="field"><label>¿A qué deuda?</label><select id="sfDebt">${opts}</select></div>
+    <div class="field"><label>Monto</label><input type="number" id="sfAmt" inputmode="decimal" placeholder="50" min="1"></div>
+    <div class="field"><label>Fecha</label><input type="date" id="sfDate" value="${new Date().toISOString().slice(0,10)}"></div>
+    <div class="btn-row">
+      <button class="btn btn-green" id="sfSave">Registrar pago</button>
+      <button class="btn btn-outline" id="sfCancel">Cancelar</button>
+    </div>
+    <div class="modal-msg" id="sfMsg"></div>
+  `);
+  document.getElementById('sfCancel').addEventListener('click', closeModal);
+  document.getElementById('sfSave').addEventListener('click', ()=>{
+    const amt = parseFloat(document.getElementById('sfAmt').value);
+    const debtId = document.getElementById('sfDebt').value;
+    const date = document.getElementById('sfDate').value;
+    if(!amt || amt<=0 || !date) return;
+    const before = project(0);
+    state.snowflakes.push({date, debtId, amount:amt});
+    const after = project(0);
+    updateAll(); saveState();
+    const msg = document.getElementById('sfMsg');
+    if(before.freeMonth && after.freeMonth){
+      const days = Math.round((before.freeMonth - after.freeMonth)*30.4);
+      const intSaved = before.totalInterest - after.totalInterest;
+      msg.innerHTML = `❄️ Registrado. Adelantaste tu libertad <strong>~${Math.max(days,0)} días</strong> y ahorraste <strong>${money(Math.max(intSaved,0))}</strong> en intereses futuros.`;
+    } else {
+      msg.textContent = '❄️ Pago registrado.';
+    }
+    msg.classList.add('show');
+    document.getElementById('sfSave').disabled = true;
+    setTimeout(closeModal, 3200);
+  });
+});
+
+/* Añadir deuda / préstamo estudiantil */
+function openAddDebt(preset){
+  openModal(`
+    <h3>${preset ? '🎓 Préstamo estudiantil' : '+ Añadir deuda'}</h3>
+    <div class="field"><label>Nombre</label><input id="adName" value="${preset?'Préstamo estudiantil':''}" placeholder="Nombre de la deuda"></div>
+    <div class="field"><label>Balance</label><input type="number" id="adBal" inputmode="decimal" placeholder="5000"></div>
+    <div class="field"><label>Interés anual (%)</label><input type="number" id="adApr" inputmode="decimal" value="${preset?'6.5':''}" placeholder="6.5"></div>
+    <div class="field"><label>Pago mensual mínimo</label><input type="number" id="adMin" inputmode="decimal" placeholder="55"></div>
+    <div class="field"><label>Primer pago (mes)</label><input type="month" id="adStart" value="${preset?'2026-11':'2026-08'}"></div>
+    <div class="btn-row">
+      <button class="btn btn-green" id="adSave">Añadir al plan</button>
+      <button class="btn btn-outline" id="adCancel">Cancelar</button>
+    </div>
+  `);
+  document.getElementById('adCancel').addEventListener('click', closeModal);
+  document.getElementById('adSave').addEventListener('click', ()=>{
+    const name = document.getElementById('adName').value.trim();
+    const bal = parseFloat(document.getElementById('adBal').value);
+    const apr = parseFloat(document.getElementById('adApr').value)||0;
+    const min = parseFloat(document.getElementById('adMin').value)||0;
+    const sv = document.getElementById('adStart').value;
+    if(!name || !bal) return;
+    const parts = sv ? sv.split('-') : ['2026','11'];
+    state.extraDebts.push({
+      id:'x'+Date.now(), name, bal, apr, min, recurring:0,
+      color:['#7A5C8E','#3E7C7B','#8E6B4A'][state.extraDebts.length%3],
+      startYm: ym(parseInt(parts[0],10), parseInt(parts[1],10)),
+      metaKill:'añadida por ti'
+    });
+    closeModal();
+    renderDebts(); renderKills(); updateAll(); saveState();
+  });
+}
+document.getElementById('btnAddDebt').addEventListener('click', ()=>openAddDebt(false));
+document.getElementById('btnStudentLoan').addEventListener('click', ()=>openAddDebt(true));
+
+/* Editar deuda (balance, APR, mínimo, recurrente) */
+function openEditDebt(id){
+  const d = getDebts().find(x=>x.id===id);
+  if(!d) return;
+  openModal(`
+    <h3>Editar: ${d.name}</h3>
+    <div class="field"><label>Balance inicial (17 jul 2026)</label><input type="number" id="edBal" inputmode="decimal" value="${d.bal}"></div>
+    <div class="field"><label>Interés anual (%)</label><input type="number" id="edApr" inputmode="decimal" value="${d.apr}"></div>
+    <div class="field"><label>Pago mínimo mensual</label><input type="number" id="edMin" inputmode="decimal" value="${d.min}"></div>
+    <div class="field"><label>Cargo recurrente mensual (suscripciones)</label><input type="number" id="edRec" inputmode="decimal" value="${d.recurring||0}"></div>
+    <div class="btn-row">
+      <button class="btn btn-green" id="edSave">Guardar</button>
+      <button class="btn btn-outline" id="edCancel">Cancelar</button>
+      ${String(id).charAt(0)==='x' ? '<button class="btn btn-outline" id="edDelete" style="color:var(--red);border-color:var(--red)">Eliminar deuda</button>' : ''}
+    </div>
+  `);
+  document.getElementById('edCancel').addEventListener('click', closeModal);
+  const del = document.getElementById('edDelete');
+  if(del) del.addEventListener('click', ()=>{
+    state.extraDebts = state.extraDebts.filter(x=>x.id!==id);
+    delete state.kills[id];
+    closeModal(); renderDebts(); renderKills(); updateAll(); saveState();
+  });
+  document.getElementById('edSave').addEventListener('click', ()=>{
+    const upd = {
+      bal: parseFloat(document.getElementById('edBal').value)||d.bal,
+      apr: parseFloat(document.getElementById('edApr').value)||0,
+      min: parseFloat(document.getElementById('edMin').value)||0,
+      recurring: parseFloat(document.getElementById('edRec').value)||0
+    };
+    if(String(id).charAt(0)==='x'){
+      const ed = state.extraDebts.find(x=>x.id===id);
+      if(ed) Object.assign(ed, upd);
+    } else {
+      state.overrides[id] = Object.assign(state.overrides[id]||{}, upd);
+    }
+    closeModal(); renderDebts(); renderKills(); updateAll(); saveState();
+  });
+}
+
+/* What-if slider */
+document.getElementById('whatifSlider').addEventListener('input', e=>{
+  state.whatif = parseInt(e.target.value,10)||0;
+  updateWhatif(project(0));
+});
+document.getElementById('whatifSlider').addEventListener('change', saveState);
+
+/* ============ ICS ============ */
+document.getElementById('btnIcs').addEventListener('click', ()=>{
+  let ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//DeudaCero//ES\r\nCALSCALE:GREGORIAN\r\n';
+  CHECKS.forEach(c=>{
+    const dt = c.date.replace(/-/g,'');
+    const next = new Date(c.date+'T12:00:00'); next.setDate(next.getDate()+1);
+    const dtEnd = next.toISOString().slice(0,10).replace(/-/g,'');
+    const desc = c.items.map(i=>`${i.n}: $${i.a}`).join('\\n');
+    ics += 'BEGIN:VEVENT\r\n';
+    ics += `UID:deudacero-${c.id}@local\r\n`;
+    ics += `DTSTAMP:${dt}T120000Z\r\n`;
+    ics += `DTSTART;VALUE=DATE:${dt}\r\n`;
+    ics += `DTEND;VALUE=DATE:${dtEnd}\r\n`;
+    ics += `SUMMARY:💵 Día de cobro — ${c.tag}\r\n`;
+    ics += `DESCRIPTION:${desc}\r\n`;
+    ics += 'BEGIN:VALARM\r\nTRIGGER:PT9H\r\nACTION:DISPLAY\r\nDESCRIPTION:Día de cobro\r\nEND:VALARM\r\n';
+    ics += 'END:VEVENT\r\n';
+  });
+  ics += 'END:VCALENDAR\r\n';
+  downloadBlob(ics, 'plan-pagos-2026.ics', 'text/calendar');
+});
+
+/* ============ BACKUP ============ */
+document.getElementById('btnExport').addEventListener('click', ()=>{
+  downloadBlob(JSON.stringify(state, null, 2), 'deuda-cero-backup.json', 'application/json');
+});
+document.getElementById('btnImport').addEventListener('click', ()=>{
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const s = JSON.parse(reader.result);
+      state = Object.assign({done:{},kills:{},snowflakes:[],extraDebts:[],overrides:{},whatif:0}, s);
+      saveState(); render();
+    }catch(err){ alert('El archivo no es un backup válido.'); }
+  };
+  reader.readAsText(file);
+});
+
+function downloadBlob(content, filename, type){
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+/* ============ CONFETTI ============ */
+function fireConfetti(){
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const canvas = document.getElementById('confetti-canvas');
+  const dpr = window.devicePixelRatio||1;
+  canvas.width = innerWidth*dpr; canvas.height = innerHeight*dpr;
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  const colors = ['#1F6B4A','#C99A2E','#B3543F','#4A6B8A','#E4EFE8'];
+  const parts = [];
+  for(let i=0;i<90;i++){
+    parts.push({
+      x: innerWidth/2 + (Math.random()-0.5)*120,
+      y: innerHeight*0.35,
+      vx: (Math.random()-0.5)*9,
+      vy: -Math.random()*10-3,
+      s: Math.random()*7+4,
+      c: colors[Math.floor(Math.random()*colors.length)],
+      r: Math.random()*Math.PI
+    });
+  }
+  const t0 = performance.now();
+  function frame(t){
+    const el = t - t0;
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+    parts.forEach(p=>{
+      p.x += p.vx; p.y += p.vy; p.vy += 0.28; p.r += 0.1;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s);
+      ctx.restore();
+    });
+    if(el < 2200) requestAnimationFrame(frame);
+    else ctx.clearRect(0,0,innerWidth,innerHeight);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ============ INIT ============ */
+loadState().then(render);
+window.addEventListener('resize', ()=>updateAll());
+</script>
+</body>
+</html>
